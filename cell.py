@@ -9,9 +9,8 @@ class Cell:
     def __init__(self, cost = 1):
         self.cost = cost
         self.neighbours = []
-        self._tentative_weight = 10000
+        self._tentative_weight = 0
         self._parent_cell = None
-        self._status = "NOT VISITED"
 
     def get_cost(self):
         return self.cost

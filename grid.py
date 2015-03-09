@@ -1,4 +1,5 @@
 from cell import *
+import sys
 
 class GridError(Exception):
      def __init__(self, value):
@@ -30,17 +31,19 @@ class Grid():
                 raise GridError("Cell does not exists")
         except IndexError:
             raise GridError("Trying to get cell outside Grid")
-        return self.cells[y][x]
+        else:
+            return self.cells[y][x]
 
     def _check_and_add_neighbour(self, c, x, y):
         if x < 0 or y < 0:
             return
         try:
             n = self.get_cell(x, y)
-            c.add_neighbour(n)
-            n.add_neighbour(c)
         except Exception:
             pass
+        else:
+            c.add_neighbour(n)
+            n.add_neighbour(c)
 
     def _check_and_remove_neighbour(self, c, x, y):
         try:
@@ -70,7 +73,6 @@ class Grid():
 
 
     def remove_cell(self, x, y):
-         # Check and add the neighbours (both directions)
         try:
             c = self.cells[y][x]
         except Exception:
@@ -102,8 +104,8 @@ class Grid():
         for i in self.cells:
             for j in i:
                 if j != None:
-                    j._tentative_weight = 10000
-                    j._status = "NOT VISITED"
+                    j._tentative_weight = sys.maxint
+
 
     # Djikstras shortest path algorithm
     # Refactor this!
@@ -111,27 +113,27 @@ class Grid():
         self._prepare_cells()
         curr = start
         curr._tentative_weight = 0
-        pending_exploration = [start]    # Make this into a set
+        tentative_weight = 0
+        pending_exploration = [(start, tentative_weight)]    # Make this into a set
         visited_set = []
 
         while curr != end:
             try:
-                curr = pending_exploration.pop(0)
+                curr, tentative_weight = pending_exploration.pop(0)
             except IndexError:  # pending_exploration is empty, no path found
                 raise GridError("No path found")
 
             visited_set.append(curr)
-
             for cell in curr.get_neighbours():
                 if cell in visited_set:
                     next
-                possible_cost = curr._tentative_weight + cell.get_cost()
+                possible_cost = tentative_weight + cell.get_cost()
                 if cell._tentative_weight > possible_cost:
                     cell._tentative_weight = possible_cost
                     cell._parent_cell = curr
-                    if cell not in pending_exploration:   # If peding_exploration is a set then this is not needed 
-                        pending_exploration.append(cell)
-            pending_exploration = sorted(pending_exploration, key=lambda(x): x._tentative_weight)
+                    if cell not in pending_exploration:   # If peding_exploration is a set then this is not needed
+                        pending_exploration.append((cell, possible_cost))
+            pending_exploration = sorted(pending_exploration, key=lambda(x): x[1])
 
         # Find the path taken
         curr = end
