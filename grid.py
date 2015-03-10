@@ -1,4 +1,4 @@
-from cell import *
+from node import *
 import sys
 
 class GridError(Exception):
@@ -21,7 +21,7 @@ class Grid():
         if x != None and y != None:
             for i in range(y):
                 for j in range(x):
-                    self.add_cell(j, i, Cell())
+                    self.add_cell(j, i, Node())
 
     def get_cell(self, x, y):
         if self.cells == None:

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import unittest
-from cell import *
+from node import *
 from grid import *
 
 class test_grid(unittest.TestCase):
@@ -13,45 +13,45 @@ class test_grid(unittest.TestCase):
         g = Grid()
         self.assertEquals(g.get_cell(0, 0), None)
 
-    def testAddCell(self):
+    def testAddNode(self):
         g = Grid()
-        c = Cell()
+        c = Node()
         g.add_cell(0, 0, c)
         self.assertEquals(g.get_cell(0, 0), c)
 
-    def testAddCellOutside(self):
+    def testAddNodeOutside(self):
         g = Grid()
-        c = Cell()
+        c = Node()
         g.add_cell(1, 1, c)
         self.assertEquals(g.get_cell(1, 1), c)
 
-    def testRemoveCell(self):
+    def testRemoveNode(self):
         g = Grid()
-        c = Cell()
+        c = Node()
         g.add_cell(2, 3, c)
         g.remove_cell(2, 3)
         with self.assertRaises(GridError): 
             g.get_cell(2, 3)
         
-    def testRemoveNonexistingCell(self):
+    def testRemoveNonexistingNode(self):
         g = Grid()
         with self.assertRaises(GridError):
             g.remove_cell(2, 3)
 
-    def testCellNeighbours(self):
+    def testNodeNeighbours(self):
         g = Grid()
-        c1 = Cell()
-        c2 = Cell()
+        c1 = Node()
+        c2 = Node()
         g.add_cell(0, 0, c1)
         g.add_cell(0, 1, c2)
         assert(c2 in c1.get_neighbours())
         assert(c1 in c2.get_neighbours())
         self.assertEquals(len(c1.get_neighbours()), 1)
 
-    def testCellNeighboursAfterRemove(self):
+    def testNodeNeighboursAfterRemove(self):
         g = Grid()
-        c1 = Cell()
-        c2 = Cell()
+        c1 = Node()
+        c2 = Node()
         g.add_cell(0, 0, c1)
         g.add_cell(1, 0, c2)
         assert(c2 in c1.get_neighbours())
@@ -64,7 +64,7 @@ class test_grid(unittest.TestCase):
         assert(g.get_cell(3, 4) in g.get_cell(3, 5).get_neighbours())
         assert(g.get_cell(2, 3) not in g.get_cell(3, 5).get_neighbours())
     
-    def testRemoveCellInUniformGrid(self):
+    def testRemoveNodeInUniformGrid(self):
         g = Grid(10, 10)
         assert(g.get_cell(5, 5) in g.get_cell(4, 5).get_neighbours())
         self.assertEquals(len(g.get_cell(4, 5).get_neighbours()), 8)
@@ -72,7 +72,7 @@ class test_grid(unittest.TestCase):
         self.assertEquals(len(g.get_cell(4, 5).get_neighbours()), 7)
         self.assertEquals(len(g.get_cell(6, 5).get_neighbours()), 7)
         
-    def testGetCellNeighbours(self):
+    def testGetNodeNeighbours(self):
         g = Grid(5, 5)
         n = g.cell_neighbours(g.get_cell(2, 2))
         assert((2, 3) in n)
@@ -83,7 +83,7 @@ class test_grid(unittest.TestCase):
         (effort, path) = g.get_shortest_path(g.get_cell(0, 0), g.get_cell(4, 0))
         self.assertEquals(effort, 4)
         self.assertEquals(path, [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0)])
-        g.add_cell(5, 0, Cell(2))
+        g.add_cell(5, 0, Node(2))
         (effort, path) = g.get_shortest_path(g.get_cell(0, 0), g.get_cell(5, 0))
         self.assertEquals(effort, 6)
         self.assertEquals(path, [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0)])
@@ -94,12 +94,12 @@ class test_grid(unittest.TestCase):
         self.assertEquals(effort, 4)
         self.assertEquals(path, [(0, 0), (1, 1), (2, 2), (3, 3), (4, 4)])
 
-    def testCellCoord(self):
+    def testNodeCoord(self):
         g = Grid(5, 5)
         c = g.get_cell(3, 2)
         self.assertEquals(g.cell_coord(c), (3,2))
 
-    def testCellCoordDeletedCell(self):
+    def testNodeCoordDeletedNode(self):
         g = Grid(5, 5)
         c = g.get_cell(3, 2)
         g.remove_cell(3, 2)
