@@ -1,5 +1,6 @@
 from node import *
 import sys
+import math
 
 class GridError(Exception):
      def __init__(self, value):
@@ -7,6 +8,14 @@ class GridError(Exception):
 
      def __str__(self):
          return repr(self.error)
+
+class AlgObj(object):
+    def __init__(self):
+        self.g_score = {}
+
+    def reconstruct_path(self, start, goal):
+        pass
+
 
 class Grid():
     NEIGHBOUR_OFFSETS = [
@@ -17,6 +26,7 @@ class Grid():
 
     def __init__(self, x = None, y = None):
         self.cells = None
+        self._visited_set = []
         #self._check_and_add_neighbour = self._check_link_and_do_action(Cell.add_neighbour)
         if x != None and y != None:
             for i in range(y):
@@ -34,7 +44,7 @@ class Grid():
         else:
             return self.cells[y][x]
 
-    def _check_and_add_neighbour(self, c, x, y):
+    def _check_and_add_neighbour(self, c, x, y, cost):
         if x < 0 or y < 0:
             return
         try:
@@ -42,8 +52,8 @@ class Grid():
         except Exception:
             pass
         else:
-            c.add_neighbour(n)
-            n.add_neighbour(c)
+            c.add_neighbour(n, cost)
+            n.add_neighbour(c, cost)
 
     def _check_and_remove_neighbour(self, c, x, y):
         try:
@@ -53,7 +63,7 @@ class Grid():
         except Exception:
             pass
 
-    def add_cell(self, x, y, c):
+    def add_cell(self, x, y, c, cost=1):
         # Check if the lists has been created, if not create it
         if self.cells == None:
             self.cells = [[None]]
@@ -69,7 +79,7 @@ class Grid():
         # Add the cell
         self.cells[y][x] = c
 
-        [self._check_and_add_neighbour(c, x + offset_x, y + offset_y) for offset_x, offset_y in Grid.NEIGHBOUR_OFFSETS]
+        [self._check_and_add_neighbour(c, x + offset_x, y + offset_y, cost) for offset_x, offset_y in Grid.NEIGHBOUR_OFFSETS]
 
 
     def remove_cell(self, x, y):
@@ -82,9 +92,9 @@ class Grid():
 
         
     def cell_neighbours(self, c):
-        neighbours = c.get_neighbours()
+        #neighbours = c.get_neighbours()
         ret_list = []
-        for n in neighbours:
+        for n in c.neighbours():
             for i in range(len(self.cells)):
                 try:
                     pos = self.cells[i].index(n)
@@ -106,6 +116,11 @@ class Grid():
                 if j != None:
                     j._tentative_weight = sys.maxint
 
+    def dist(self, start, end):
+        #return 1
+        start_x, start_y = self.cell_coord(start)
+        end_x, end_y = self.cell_coord(end)
+        return math.sqrt((end_x -start_x)**2 + (end_y - start_y)**2)
 
     # Djikstras shortest path algorithm
     # Refactor this!
@@ -114,8 +129,8 @@ class Grid():
         curr = start
         curr._tentative_weight = 0
         tentative_weight = 0
-        pending_exploration = [(start, tentative_weight)]    # Make this into a set
-        visited_set = []
+        pending_exploration = [(start, tentative_weight)]
+        self._visited_set = []
 
         while curr != end:
             try:
@@ -123,18 +138,18 @@ class Grid():
             except IndexError:  # pending_exploration is empty, no path found
                 raise GridError("No path found")
 
-            visited_set.append(curr)
-            for cell in curr.get_neighbours():
-                if cell in visited_set:
-                    next
-                possible_cost = tentative_weight + cell.get_cost()
-                if cell._tentative_weight > possible_cost:
-                    cell._tentative_weight = possible_cost
-                    cell._parent_cell = curr
-                    if cell not in pending_exploration:   # If peding_exploration is a set then this is not needed
-                        pending_exploration.append((cell, possible_cost))
-            pending_exploration = sorted(pending_exploration, key=lambda(x): x[1])
 
+            for edge in curr.edges():
+                if edge in self._visited_set:
+                    next
+                possible_cost = tentative_weight + edge.cost
+                if edge.end_node._tentative_weight > possible_cost:
+                    edge.end_node._tentative_weight = possible_cost
+                    edge.end_node._parent_cell = curr
+                    if edge not in pending_exploration:
+                        pending_exploration.append((edge.end_node, possible_cost))
+            pending_exploration = sorted(pending_exploration, key=lambda(x): x[1])
+            self._visited_set.append(curr)
         # Find the path taken
         curr = end
         shortest_path = []
@@ -142,7 +157,62 @@ class Grid():
         while curr != start:
             shortest_path.append(self.cell_coord(curr))
             curr = curr._parent_cell
-    
+
         shortest_path.append(self.cell_coord(start))
 
-        return (end._tentative_weight, list(reversed(shortest_path)))
+        #return (end._tentative_weight, list(reversed(shortest_path)))
+        return (end._tentative_weight, self.reconstruct_path(start, end))
+
+    def a_star(self, start, goal):
+        current = start
+        openset = [start]
+        self.closedset = []
+        self.g_score = {}
+        f_score = {}
+        heuristic_fun = self.dist
+
+        self.g_score[start] = 0
+        f_score[start] = self.g_score[start] + heuristic_fun(start, goal)
+
+        while len(openset) > 0:
+            # Find lowest f_score value, this can use a
+            # sort of the f_score dict instead
+            next_node = openset[0]
+            for node in openset:
+                if f_score[node] < f_score[next_node]:
+                    next_node = node
+
+            current = next_node
+            openset.pop(openset.index(current))
+
+
+            if current == goal:
+                # Found path
+                print "Found path"
+                return (1, self.reconstruct_path(start, goal))
+
+            self.closedset.append(current)
+
+            for edge in current.edges():
+                if edge.end_node in self.closedset:
+                    continue
+                tentative_g_score = self.g_score[current] + edge.cost
+
+                if edge.end_node not in openset or tentative_g_score < self.g_score[edge.end_node]:
+                    edge.end_node._parent_cell = current
+                    self.g_score[edge.end_node] = tentative_g_score
+                    f_score[edge.end_node] = self.g_score[edge.end_node] + heuristic_fun(edge.end_node, goal)
+                    if edge.end_node not in openset:
+                        openset.append(edge.end_node)
+        return (None, None)
+
+    def reconstruct_path(self, start, goal):
+        curr = goal
+        shortest_path = []
+
+        while curr != start:
+            shortest_path.append(self.cell_coord(curr))
+            curr = curr._parent_cell
+
+        shortest_path.append(self.cell_coord(start))
+        return list(reversed(shortest_path))

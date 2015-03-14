@@ -6,33 +6,35 @@ class NodeError(Exception):
          return repr(self.error)
 
 class Node(object):
-    def __init__(self, cost = 1):
-        self.cost = cost
-        self.neighbour_list = []
+    def __init__(self):
+        self.edge_list = []
         self._tentative_weight = 0
-        self._parent_cell = None
+        self._parent_node = None
 
-    def get_cost(self):
-        return self.cost
-
-    def set_cost(self, cost):
-        self.cost = cost
-
-    def add_neighbour(self, node):
-        self.neighbour_list.append(node)
-
-    def get_neighbours(self):
-        return self.neighbour_list
+    def add_neighbour(self, end_node, cost=1, bi_directional=False):
+        self.edge_list.append(Edge(self, end_node, cost, bi_directional))
 
     def neighbours(self):
-        for i in range(len(self.neighbour_list)):
-            yield self.neighbour_list[i]
+        for edge in self.edge_list:
+            yield edge.end_node
+
+    def edges(self):
+        for edge in self.edge_list:
+            yield edge
+
+    def change_edge_costs(self, cost):
+        for edge in self.edge_list:
+            edge.cost = cost
 
     def remove_neighbour(self, node):
-        if node not in self.neighbour_list:
+        (end_node, idx) = (None, None)
+        for idx, edge in enumerate(self.edge_list):
+            if edge.end_node == node:
+                (end_node, idx) = (edge.end_node, idx)
+                break
+        if end_node is None:
             raise NodeError("Trying to remove a non existing neigbour")
-        self.neighbour_list.pop(self.neighbour_list.index(node))
-
+        self.edge_list.pop(idx)
 
 class EdgeError(Exception):
      def __init__(self, value):
@@ -42,8 +44,11 @@ class EdgeError(Exception):
          return repr(self.error)
 
 class Edge(object):
-    def __init__(self, cost, start_node, end_node, bi_directional=False):
+    def __init__(self, start_node, end_node, cost, bi_directional=False):
         self._cost = cost
+        self.start_node = start_node
+        self.end_node = end_node
+        self.bi_directional = bi_directional
 
     @property
     def cost(self):
