@@ -89,7 +89,7 @@ class AStar(AlgObj):
         return self.g_score[node]
 
     def dist(self, start, end):
-        #return 1
+        #return 0
         start_x, start_y = self.graph.cell_coord(start)
         end_x, end_y = self.graph.cell_coord(end)
         return math.sqrt((end_x -start_x)**2 + (end_y - start_y)**2)
