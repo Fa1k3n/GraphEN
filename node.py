@@ -9,7 +9,6 @@ class Node(object):
     def __init__(self):
         self.edge_list = []
         self._tentative_weight = 0
-        self._parent_node = None
 
     def add_neighbour(self, end_node, cost=1, bi_directional=False):
         self.edge_list.append(Edge(self, end_node, cost, bi_directional))
