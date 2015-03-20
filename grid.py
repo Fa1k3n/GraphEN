@@ -39,18 +39,16 @@ class AlgObj(object):
         return list(reversed(shortest_path))
 
 
-
-class AStar(AlgObj):
-    def __init__(self, graph, dist):
-        super(AStar, self).__init__(graph)
+class Djikstra(AlgObj):
+    def __init__(self, graph):
+        super(Djikstra, self).__init__(graph)
+        self._tentative_weight = {}
         self.g_score = {}
-        self.dist = dist
+        self.dist = lambda x,y : 0
 
     def shortest_path(self, start, goal):
         self.openset.append(start)
-        self.g_score = {}
         f_score = {}
-
         self.g_score[start] = 0
         f_score[start] = self.g_score[start] + self.dist(start, goal)
 
@@ -87,50 +85,13 @@ class AStar(AlgObj):
         return False
 
     def effort(self, node):
-        return self.g_score[node]
+        return self._g_score[node]
 
-class Djikstra(AlgObj):
-     # Djikstras shortest path algorithm
-    # Refactor this!
-
-    def __init__(self, graph):
-        super(Djikstra, self).__init__(graph)
-        self._tentative_weight = {}
-
-    def shortest_path(self, start, goal):
-        current = start
-        self._tentative_weight[current] = 0
-        self.openset.append(start)
-
-        while len(self.openset) > 0:
-            # Find lowest tentative_weight value, this can use a
-            # sort of the tentative_weight dict instead
-            next_node = self.openset[0]
-            for node in self.openset:
-                if self._tentative_weight[node] < self._tentative_weight[next_node]:
-                    next_node = node
-
-            current = next_node
-            self.openset.pop(self.openset.index(current))
-
-            if current == goal:
-                self.path = self.reconstruct_path(start, goal)
-                return True
-            self.closedset.append(current)
-
-            for edge in current.edges():
-                if edge.end_node in self.closedset:
-                    continue
-                possible_tentative_weight = self._tentative_weight[current] + edge.cost
-                if edge.end_node not in self.openset or possible_tentative_weight < self._tentative_weight[edge.end_node]:
-                    self._came_from[edge.end_node] = current
-                    self._tentative_weight[edge.end_node] = possible_tentative_weight
-                    if edge.end_node not in self.openset:
-                        self.openset.append(edge.end_node)
-        return True
-
-    def effort(self, node):
-        return self._tentative_weight[node]
+# AStar is a Djikstra with a distance function
+class AStar(Djikstra):
+    def __init__(self, graph, dist):
+        super(AStar, self).__init__(graph)
+        self.dist = dist
 
 
 class Grid():
