@@ -1,6 +1,7 @@
 from node import *
 import sys
 import math
+import time
 
 class GridError(Exception):
      def __init__(self, value):
@@ -47,6 +48,12 @@ class Djikstra(AlgObj):
         self.dist = lambda x,y : 0
 
     def shortest_path(self, start, goal):
+        t1 = time.clock()
+        r = self._shortest_path(start, goal)
+        dt = time.clock() - t1
+        print "Delta t: ", dt
+
+    def _shortest_path(self, start, goal):
         self.openset.append(start)
         f_score = {}
         self.g_score[start] = 0
@@ -91,20 +98,40 @@ class Djikstra(AlgObj):
 class AStar(Djikstra):
     def __init__(self, graph, dist):
         super(AStar, self).__init__(graph)
-        self.dist = dist
+        self.dist = self.cached_dist
+        #self.dist = self._graph.dist
+        self.dist_cache = {}
+
+    """
+    A very simple distance caching mechanism so that each node only need to
+    do an expencive sqrt calculation onece
+
+    Early measurements:
+        0.0561 - vert, not cached
+        0.0787 - hori, not cached
+        0.7050 - diag, not cached
+
+        0.0606 - vert, cached
+        0.0745 - hori, cached
+        0.4604 - diag, cached
+    """
+    def cached_dist(self, start, end):
+        if start not in self.dist_cache:
+            self.dist_cache[start] = self._graph.dist(start, end)
+        return self.dist_cache[start]
 
 
 class Grid():
     NEIGHBOUR_OFFSETS = [
-            (-1, -1), ( 0, -1), (+1, -1),
-            (-1,  0),           (+1,  0),
-            (-1, +1), ( 0, +1), (+1, +1)
+        ((-1, -1), math.sqrt(2)), (( 0, -1), 1), ((+1, -1), math.sqrt(2)),
+        ((-1,  0), 1),                ((+1,  0), 1),
+        ((-1, +1), math.sqrt(2)), (( 0, +1), 1), ((+1, +1), math.sqrt(2))
         ]
 
     def __init__(self, x = None, y = None):
         self.cells = None
         self._visited_set = []
-        #self._check_and_add_neighbour = self._check_link_and_do_action(Cell.add_neighbour)
+        self.size = (x, y)
         if x != None and y != None:
             for i in range(y):
                 for j in range(x):
@@ -156,7 +183,7 @@ class Grid():
         # Add the cell
         self.cells[y][x] = c
 
-        [self._check_and_add_neighbour(c, x + offset_x, y + offset_y, cost) for offset_x, offset_y in Grid.NEIGHBOUR_OFFSETS]
+        [self._check_and_add_neighbour(c, x + offset_x, y + offset_y, cost*cost_scale) for (offset_x, offset_y), cost_scale in Grid.NEIGHBOUR_OFFSETS]
 
 
     def remove_cell(self, x, y):
@@ -164,12 +191,11 @@ class Grid():
             c = self.cells[y][x]
         except Exception:
             raise GridError("Cell does not exists")
-        [self._check_and_remove_neighbour(c, x + offset_x, y + offset_y) for offset_x, offset_y in Grid.NEIGHBOUR_OFFSETS]
+        [self._check_and_remove_neighbour(c, x + offset_x, y + offset_y) for (offset_x, offset_y), cost_scale in Grid.NEIGHBOUR_OFFSETS]
         self.cells[y][x] = None
 
         
     def cell_neighbours(self, c):
-        #neighbours = c.get_neighbours()
         ret_list = []
         for n in c.neighbours():
             for i in range(len(self.cells)):
