@@ -17,6 +17,7 @@ class AlgObj(object):
         self._came_from = {}
         self.closedset = []
         self.openset = []
+        self.path = []
 
     def shortest_path(self, start, goal): pass
 
@@ -45,12 +46,12 @@ class Djikstra(AlgObj):
         super(Djikstra, self).__init__(graph)
         self.g_score = {}
         self.dist = lambda x,y : 0
+        self.time = 0
 
     def shortest_path(self, start, goal):
         t1 = time.clock()
         r = self._shortest_path(start, goal)
-        dt = time.clock() - t1
-        print "Delta t: ", dt
+        self.time = time.clock() - t1
 
     def _shortest_path(self, start, goal):
         self.openset.append(start)
@@ -191,7 +192,10 @@ class Grid():
         [self._check_and_add_neighbour(c, x + offset_x, y + offset_y, cost*cost_scale) for (offset_x, offset_y), cost_scale in Grid.NEIGHBOUR_OFFSETS]
 
 
-    def remove_cell(self, x, y):
+    def remove_cell(self, x, y = None):
+        if type(x) is tuple:
+            (x, y) = (x[0], x[1])
+        (x, y) = (int(x), int(y))
         try:
             c = self.cells[y][x]
         except Exception:
