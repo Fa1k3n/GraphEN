@@ -43,7 +43,6 @@ class AlgObj(object):
 class Djikstra(AlgObj):
     def __init__(self, graph):
         super(Djikstra, self).__init__(graph)
-        self._tentative_weight = {}
         self.g_score = {}
         self.dist = lambda x,y : 0
 
@@ -99,7 +98,6 @@ class AStar(Djikstra):
     def __init__(self, graph, dist):
         super(AStar, self).__init__(graph)
         self.dist = self.cached_dist
-        #self.dist = self._graph.dist
         self.dist_cache = {}
 
     """
@@ -137,7 +135,14 @@ class Grid():
                 for j in range(x):
                     self.add_cell(j, i, Node())
 
-    def get_cell(self, x, y):
+
+    """
+    get_cell works on both coordinates x, y or on a tuple (x, y)
+    """
+    def get_cell(self, x, y=None):
+        if type(x) is tuple:
+            (x, y) = (x[0], x[1])
+
         if self.cells == None:
             return None
         try:
