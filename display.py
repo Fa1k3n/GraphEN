@@ -89,16 +89,22 @@ class GridController(object):
         self.view.root.bind("<a>", self.toggle_algo)
         self.view.root.bind("<e>", self.toggle_map_edit)
         self.algo = "Djikstra"
-        self.algos = {"Djikstra":"AStar", "AStar":"Djikstra"}
+        self.algos = {"Djikstra":"A*", "A*":"Djikstra"}
         self.map_edit = False
+        self.set_win_title()
         self.selected_cells = []
+
+    def set_win_title(self):
+        self.view.root.wm_title("Algorithm [" + self.algo + "] Map edit [" + str(self.map_edit) + "]")
 
     def toggle_algo(self, event):
         self.algo = self.algos[self.algo]
+        self.set_win_title()
 
     def toggle_map_edit(self, event):
         self.map_edit = not self.map_edit
         self.view.edit_mode = self.map_edit
+        self.set_win_title()
 
     def create_path_obj(self):
         if self.algo == "Djikstra":
@@ -154,6 +160,7 @@ class GridController(object):
                 s = self.grid.get_cell(self.selected_cells[idx-1])
                 e = self.grid.get_cell(self.selected_cells[idx])
                 d.shortest_path(s, e)
+                print ("Time", d.time)
                 self.view.path_objs.append(d)
 
         self.view.selected_cells = self.selected_cells

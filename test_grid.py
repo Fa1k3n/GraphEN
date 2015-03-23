@@ -3,6 +3,7 @@
 import unittest
 from node import *
 from grid import *
+import math
 
 class test_grid(unittest.TestCase):
 
@@ -80,19 +81,22 @@ class test_grid(unittest.TestCase):
 
     def testShortestPath(self):
         g = Grid(5, 1)
-        (effort, path) = g.get_shortest_path(g.get_cell(0, 0), g.get_cell(4, 0))
-        self.assertEquals(effort, 4)
-        self.assertEquals(path, [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0)])
+        PO = Djikstra(g)
+        PO.shortest_path(g.get_cell(0, 0), g.get_cell(4, 0))
+        self.assertEquals(PO.effort(), 4)
+        self.assertEquals(PO.path, [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0)])
         g.add_cell(5, 0, Node(), 2)
-        (effort, path) = g.get_shortest_path(g.get_cell(0, 0), g.get_cell(5, 0))
-        self.assertEquals(effort, 6)
-        self.assertEquals(path, [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0)])
+        PO = Djikstra(g)
+        PO.shortest_path(g.get_cell(0, 0), g.get_cell(5, 0))
+        self.assertEquals(PO.effort(), 6)
+        self.assertEquals(PO.path, [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0)])
 
     def testShortestPathBigGrid(self):
          g = Grid(5, 5)
-         (effort, path) = g.get_shortest_path(g.get_cell(0, 0), g.get_cell(4, 4))
-         self.assertEquals(effort, 4)
-         self.assertEquals(path, [(0, 0), (1, 1), (2, 2), (3, 3), (4, 4)])
+         PO = Djikstra(g)
+         PO.shortest_path(g.get_cell(0, 0), g.get_cell(4, 4))
+         self.assertEquals(PO.effort(), math.sqrt(4*4 + 4*4))
+         self.assertEquals(PO.path, [(0, 0), (1, 1), (2, 2), (3, 3), (4, 4)])
 
     def testNodeCoord(self):
          g = Grid(5, 5)
@@ -111,17 +115,19 @@ class test_grid(unittest.TestCase):
          g.remove_cell(1, 1)
          c = g.get_cell(1, 2)
          c.change_edge_costs(30)
-         (effort, path) = g.get_shortest_path(g.get_cell(0, 0), g.get_cell(2, 2))
-         self.assertEqual(effort, 3)
-         self.assertEquals(path, [(0, 0), (1, 0), (2, 1), (2, 2)])
+         PO = Djikstra(g)
+         PO.shortest_path(g.get_cell(0, 0), g.get_cell(2, 2))
+         self.assertEqual(PO.effort(), 1+math.sqrt(2)+1)
+         self.assertEquals(PO.path, [(0, 0), (1, 0), (2, 1), (2, 2)])
 
     def testNoPathFound(self):
          g = Grid(3, 3)
+         PO = Djikstra(g)
          g.remove_cell(1, 1)
          g.remove_cell(1, 0)
          g.remove_cell(0, 1)
          with self.assertRaises(GridError):
-             (effort, path) = g.get_shortest_path(g.get_cell(0, 0), g.get_cell(2, 2))
+             PO.shortest_path(g.get_cell(0, 0), g.get_cell(2, 2))
 
 
         

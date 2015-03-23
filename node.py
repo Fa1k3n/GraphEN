@@ -18,8 +18,7 @@ class Node(object):
             yield edge.end_node
 
     def edges(self):
-        for edge in self.edge_list:
-            yield edge
+        return self.edge_list
 
     def change_edge_costs(self, cost):
         for edge in self.edge_list:

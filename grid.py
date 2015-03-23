@@ -45,6 +45,7 @@ class Djikstra(AlgObj):
     def __init__(self, graph):
         super(Djikstra, self).__init__(graph)
         self.g_score = {}
+        self.f_score = {}
         self.dist = lambda x,y : 0
         self.time = 0
 
@@ -53,21 +54,22 @@ class Djikstra(AlgObj):
         r = self._shortest_path(start, goal)
         self.time = time.clock() - t1
 
+    def _get_next_node(self):
+        next_node = self.openset[0]
+        for node in self.openset:
+            if self.f_score[node] < self.f_score[next_node]:
+                next_node = node
+        return next_node
+
     def _shortest_path(self, start, goal):
         self.openset.append(start)
-        f_score = {}
+        self.f_score = {}
         self.g_score[start] = 0
-        f_score[start] = self.g_score[start] + self.dist(start, goal)
+        self.f_score[start] = self.g_score[start] + self.dist(start, goal)
 
-        while len(self.openset) > 0:
-            # Find lowest f_score value, this can use a
-            # sort of the f_score dict instead
-            next_node = self.openset[0]
-            for node in self.openset:
-                if f_score[node] < f_score[next_node]:
-                    next_node = node
+        while len(self.openset):
 
-            current = next_node
+            current = self._get_next_node()
             self.openset.pop(self.openset.index(current))
 
             if current == goal:
@@ -86,13 +88,16 @@ class Djikstra(AlgObj):
                     edge.end_node._parent_cell = current
                     self._came_from[edge.end_node] = current
                     self.g_score[edge.end_node] = tentative_g_score
-                    f_score[edge.end_node] = self.g_score[edge.end_node] + self.dist(edge.end_node, goal)
+                    self.f_score[edge.end_node] = self.g_score[edge.end_node] + self.dist(edge.end_node, goal)
                     if edge.end_node not in self.openset:
                         self.openset.append(edge.end_node)
-        return False
+        # No path
+        raise GridError("No path found")
 
-    def effort(self, node):
-        return self._g_score[node]
+    def effort(self, node=None):
+        if node == None:
+            node = self._graph.get_cell(self.path[-1])
+        return self.g_score[node]
 
 # AStar is a Djikstra with a distance function
 class AStar(Djikstra):
@@ -216,11 +221,24 @@ class Grid():
         return ret_list
 
     def cell_coord(self, c):
-        for i in range(len(self.cells)):
-            for j in range(len(self.cells[i])):
-                if self.cells[i][j] == c:
-                    return (j, i)
+
+        for (col, row) in enumerate(self.cells):
+            try:
+                return (row.index(c), col)
+            except ValueError:
+                pass
         raise GridError("Cell not found")
+        #for i in range(len(self.cells)):
+        #    try:
+        #        j = self.cells[i].index(c)
+        #    except ValueError:
+        #        pass
+        #    else:
+        #        return (j, i)
+            #for j in range(len(self.cells[i])):
+            #    if self.cells[i][j] == c:
+            #        return (j, i)
+
 
     def dist(self, start, end):
         start_x, start_y = self.cell_coord(start)
