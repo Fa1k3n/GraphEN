@@ -15,8 +15,6 @@ class test_edge(unittest.TestCase):
         with self.assertRaises(EdgeError):
             e.cost = -1
 
-
-
 class test_cell(unittest.TestCase):
 
     def setUp(self):
@@ -69,6 +67,46 @@ class test_cell(unittest.TestCase):
          for idx, neigbour in enumerate(c1.neighbours()):
              self.assertEquals(neigbour, neighbour_nodes[idx])
 
+class test_graph(unittest.TestCase):
+    def testGraphCreation(self):
+        g = Graph()
+        self.assertIsNot(g, None)
+        g = Graph("The First Graph")
+        self.assertEquals(g.name, "The First Graph")
+
+    def testGraphAddAVertex(self):
+        g = Graph()
+        n = Node()
+        g.add_vertex(n)
+        self.assertEquals(g._vertex_count, 1)
+        self.assertTrue(n in g._vertices.keys())
+        self.assertEquals(len(g._vertices[n]), 0)
+
+    def testAddExistingVertexShouldRaiseGraphError(self):
+        g = Graph()
+        n = Node()
+        g.add_vertex(n)
+        with self.assertRaises(GraphError):
+            g.add_vertex(n)
+        self.assertEquals(g._vertex_count, 1)
+
+    def testGraphRemoveVertex(self):
+        g = Graph()
+        n = Node()
+        g.add_vertex(n)
+        g.rem_vertex(n)
+        self.assertEquals(g._vertex_count, 0)
+        self.assertTrue(n not in g._vertices.keys())
+        self.assertEquals(len(g._vertices.keys()), 0)
+
+    def testRemoveNonExistingVertexShouldRaiseGraphError(self):
+        g = Graph()
+        n = Node()
+        g.add_vertex(n)
+        g.rem_vertex(n)
+        with self.assertRaises(GraphError):
+            g.rem_vertex(n)
+        self.assertEquals(g._vertex_count, 0)
 
 
 

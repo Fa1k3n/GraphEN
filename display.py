@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from tkinter import *
+from Tkinter import *
 from grid import *
 import warnings
 
