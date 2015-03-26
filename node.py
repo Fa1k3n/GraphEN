@@ -6,7 +6,7 @@ class NodeError(Exception):
          return repr(self.error)
 
 class Node(object):
-    def __init__(self):
+    def __init__(self, name=""):
         self.edge_list = []
         self._tentative_weight = 0
 
@@ -42,7 +42,7 @@ class EdgeError(Exception):
          return repr(self.error)
 
 class Edge(object):
-    def __init__(self, start_node, end_node, cost, bi_directional=False):
+    def __init__(self, cost, label=""):
         self._cost = cost
         self.start_node = start_node
         self.end_node = end_node
@@ -71,7 +71,7 @@ class Graph(object):
         self._vertex_count = 0
         self._vertices = {}
 
-    def add_vertex(self, vert):
+    def add_vertex(self, *vert):
         if vert not in self._vertices:
             self._vertex_count += 1
             self._vertices[vert] = []
@@ -85,3 +85,9 @@ class Graph(object):
             raise GraphError("Trying to remove none existing node")
         else:
             self._vertex_count -= 1
+
+    """
+    should take start_ and end_ vertices both as references and as named nodes
+    """
+    def add_edge(self, start_vert, end_vert, edge, directed=False):
+        pass
