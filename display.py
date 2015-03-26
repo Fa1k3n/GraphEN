@@ -61,6 +61,8 @@ class GridCanvas(Canvas, object):
                 else:
                    if len(list(filter(lambda path_obj: c in path_obj.visited(), self.path_objs))) > 0:
                         cell_fill = "brown"
+                   #if len(list(filter(lambda path_obj: c in path_obj.fringe(), self.path_objs))) > 0:
+                   #    cell_fill = "gray"
                    if (i, j) in self.selected_cells:
                         cell_fill = "blue"
                 id = self.create_rectangle(i * self.cw, j * self.ch, (i + 1) * self.cw, (j + 1) * self.ch, fill = cell_fill, activefill=cell_active_fill)

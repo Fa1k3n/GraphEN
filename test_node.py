@@ -108,6 +108,18 @@ class test_graph(unittest.TestCase):
             g.rem_vertex(n)
         self.assertEquals(g._vertex_count, 0)
 
+    def testAddSeveralVerticesAndEdges(self):
+        g = Graph()
+        n1 = Node("Node 1")
+        n2 = Node("Node 2")
+        g.add_vertex(n1, n2)
+        g.add_edge(n1, n2, nEdge(2, "Test edge"))
+        self.assertEquals(g._vertex_count, 2)
+        self.assertEquals(g._edge_count, 1)
+        self.assertTrue("Node 1" in g._vertices.keys())
+        self.assertTrue("Node 2" in g._vertices.keys())
+        self.assertTrue("Node 1" in g._vertices["Node 2"])
+        self.assertTrue("Node 2" in g._vertices["Node 1"])
 
 
 if __name__ == '__main__':

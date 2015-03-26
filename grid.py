@@ -2,6 +2,8 @@ from node import *
 import sys
 import math
 import time
+from Queue import PriorityQueue
+import itertools
 
 class GridError(Exception):
      def __init__(self, value):
@@ -16,7 +18,7 @@ class AlgObj(object):
         self._graph = graph
         self._came_from = {}
         self.closedset = []
-        self.openset = []
+        self.openset = PriorityQueue()
         self.path = []
 
     def shortest_path(self, start, goal): pass
@@ -25,7 +27,7 @@ class AlgObj(object):
         return self.closedset
 
     def fringe(self):
-        return self.openset
+        return self.openset.queue
 
     def effort(self, n): pass
 
@@ -54,23 +56,15 @@ class Djikstra(AlgObj):
         r = self._shortest_path(start, goal)
         self.time = time.clock() - t1
 
-    def _get_next_node(self):
-        next_node = self.openset[0]
-        for node in self.openset:
-            if self.f_score[node] < self.f_score[next_node]:
-                next_node = node
-        return next_node
-
     def _shortest_path(self, start, goal):
-        self.openset.append(start)
+        self.openset.put((0, start))
         self.f_score = {}
         self.g_score[start] = 0
         self.f_score[start] = self.g_score[start] + self.dist(start, goal)
 
-        while len(self.openset):
+        while not self.openset.empty():
 
-            current = self._get_next_node()
-            self.openset.pop(self.openset.index(current))
+            (score, current) = self.openset.get()
 
             if current == goal:
                 # Found path
@@ -84,13 +78,19 @@ class Djikstra(AlgObj):
                     continue
                 tentative_g_score = self.g_score[current] + edge.cost
 
-                if edge.end_node not in self.openset or tentative_g_score < self.g_score[edge.end_node]:
+                in_open_set = False
+                for (cost, node) in self.openset.queue:
+                    if edge.end_node == node:
+                        in_open_set = True
+                        break
+
+                if not in_open_set or tentative_g_score < self.g_score[edge.end_node]:
                     edge.end_node._parent_cell = current
                     self._came_from[edge.end_node] = current
                     self.g_score[edge.end_node] = tentative_g_score
                     self.f_score[edge.end_node] = self.g_score[edge.end_node] + self.dist(edge.end_node, goal)
-                    if edge.end_node not in self.openset:
-                        self.openset.append(edge.end_node)
+                    if not in_open_set:
+                        self.openset.put((self.f_score[edge.end_node], edge.end_node))
         # No path
         raise GridError("No path found")
 
