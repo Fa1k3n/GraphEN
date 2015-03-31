@@ -3,6 +3,8 @@
 from Tkinter import *
 from grid import *
 import warnings
+from graphen.algorithms.pathfinding import Djikstra as Djikstra
+from graphen.algorithms.pathfinding import AStar as AStar
 
 class GridCanvas(Canvas, object):
     def __init__(self, root, grid, width=200, height=200):
@@ -54,7 +56,7 @@ class GridCanvas(Canvas, object):
                     cell_active_fill = "black"
                 try:
                     c = g.get_cell(i, j)
-                except GridError:
+                except GraphError:
                     # Cell does not exists
                     cell_fill = "black"
                     cell_active_fill = "black"
@@ -75,8 +77,8 @@ class GridCanvas(Canvas, object):
                 except Exception as e:
                     pass
                 else:
-                    (sx, sy) = (start[0], start[1])
-                    (ex, ey) = (end[0], end[1])
+                    (sx, sy) = self.grid.cell_coord(start)
+                    (ex, ey) = self.grid.cell_coord(end)
                     self.create_line(sx*self.cw + self.cw/2, sy*self.ch + self.ch/2,
                                      ex*self.cw + self.cw/2, ey*self.ch + self.ch/2, width=3)
 
@@ -117,21 +119,22 @@ class GridController(object):
     def mouse_click(self, event):
         cell = self.coord_to_cell(event.x, event.y)
         d = self.create_path_obj()
-
+        cell_lbl = Grid.CellCoordLabel(cell[0], cell[1])
         # See if cell is existing
         try:
-            c = self.grid.get_cell(cell)
+            c = self.grid.vertex(cell_lbl)
         except:
             return
         else:
             if self.map_edit:
-                self.grid.remove_cell(cell)
+                self.grid.del_cell(cell)
                 # Create all PO's again, world has changed
                 new_pos = []
                 for po in self.view.path_objs:
                     p = self.create_path_obj()
-                    start = self.grid.get_cell(po.path[0])
-                    end = self.grid.get_cell(po.path[-1])
+                    #start = self.grid.get_cell(self.grid.cell_coord(po.path[0]))
+                    #end = self.grid.get_cell(self.grid.cell_coord(po.path[-1]))
+                    (start, end) = (po.path[0], po.path[-1])
                     p.shortest_path(start, end)
                     new_pos.append(p)
                 self.view.path_objs = new_pos
@@ -144,7 +147,7 @@ class GridController(object):
             po_to_be_removed = []
             (new_start, new_end) = (None, None)
             for po in self.view.path_objs:
-                (po_start, po_end) = (po.path[0], po.path[-1])
+                (po_start, po_end) = (self.grid.cell_coord(po.path[0]), self.grid.cell_coord(po.path[-1]))
                 if po_start == cell:
                     po_to_be_removed.append(po)
                     new_end = po_end
@@ -159,8 +162,8 @@ class GridController(object):
             self.selected_cells.append(cell)
             idx = self.selected_cells.index(cell)
             if idx > 0:
-                s = self.grid.get_cell(self.selected_cells[idx-1])
-                e = self.grid.get_cell(self.selected_cells[idx])
+                s = self.grid.get_cell(self.selected_cells[idx-1][0], self.selected_cells[idx-1][1])
+                e = self.grid.get_cell(self.selected_cells[idx][0], self.selected_cells[idx][1])
                 d.shortest_path(s, e)
                 print ("Time", d.time)
                 self.view.path_objs.append(d)
@@ -180,9 +183,9 @@ if __name__ == '__main__':
     # Make some obstacles
     for i in [2, 4]:
         for y in range(5):
-            g.remove_cell(hori_cells/i, vert_cells/i - y)
-        for x in range(5):
-            g.remove_cell(hori_cells/i - x, vert_cells/i)
+            g.del_vertex(Grid.CellCoordLabel(hori_cells/i, vert_cells/i - y))
+        for x in range(4):
+            g.del_vertex(Grid.CellCoordLabel(hori_cells/i - x - 1, vert_cells/i))
 
     root = Tk()
     w = GridCanvas(root, g, width=400, height=400)
