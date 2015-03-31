@@ -27,39 +27,37 @@ class test_grid(unittest.TestCase):
         with self.assertRaises(GraphError):
             g.del_vertex(Grid.CellCoordLabel(7, 3))
 
-#    def testShortestPath(self):
-#        g = Grid(5, 1)
-#        PO = Djikstra(g)
-#        PO.shortest_path(g.get_cell(0, 0), g.get_cell(4, 0))
-#        self.assertEquals(PO.effort(), 4)
-#        self.assertEquals(PO.path, [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0)])
-#        g.add_cell(5, 0, Node(), 2)
-#        PO = Djikstra(g)
-#        PO.shortest_path(g.get_cell(0, 0), g.get_cell(5, 0))
-#        self.assertEquals(PO.effort(), 6)
+    def testShortestPath(self):
+        g = Grid(5, 1)
+        PO = Djikstra(g)
+        PO.shortest_path(g.get_cell(0, 0), g.get_cell(4, 0))
+        self.assertEquals(PO.effort(), 4)
+        answ = [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0)]
+        for idx, p in enumerate(PO.path):
+            self.assertEquals(p.label, g.CellCoordLabel(answ[idx][0], answ[idx][1]))
+
+        #g.add_cell(5, 0, Node(), 2)
+        #PO = Djikstra(g)
+        #PO.shortest_path(g.get_cell(0, 0), g.get_cell(5, 0))
+        #self.assertEquals(PO.effort(), 6)
+        #answ = [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0)]
+        #for idx, p in enumerate(PO.path):
+        #    self.assertEquals(p.label, answ[idx])
 #        self.assertEquals(PO.path, [(0, 0), (1, 0), (2, 0), (3, 0), (4, 0), (5, 0)])
 
-#    def testShortestPathBigGrid(self):
-#         g = Grid(5, 5)
-#         PO = Djikstra(g)
-#         PO.shortest_path(g.get_cell(0, 0), g.get_cell(4, 4))
-#         self.assertEquals(PO.effort(), math.sqrt(4*4 + 4*4))
-#         self.assertEquals(PO.path, [(0, 0), (1, 1), (2, 2), (3, 3), (4, 4)])
+    def testShortestPathBigGrid(self):
+         g = Grid(5, 5)
+         PO = Djikstra(g)
+         PO.shortest_path(g.get_cell(0, 0), g.get_cell(4, 4))
+         self.assertEquals(PO.effort(), math.sqrt(4*4 + 4*4))
+         answ = [(0, 0), (1, 1), (2, 2), (3, 3), (4, 4)]
+         for idx, p in enumerate(PO.path):
+             self.assertEquals(p.label, g.CellCoordLabel(answ[idx][0], answ[idx][1]))
 
     def testNodeCoord(self):
          g = Grid(5, 5)
          c = g.get_cell(3, 2)
          self.assertEquals(g.cell_coord(c), (3,2))
-
-#    def testShortestPathDifficult(self):
-#         g = Grid(3, 3)
-#         g.remove_cell(1, 1)
-#         c = g.get_cell(1, 2)
-#         c.change_edge_costs(30)
-#         PO = Djikstra(g)
-#         PO.shortest_path(g.get_cell(0, 0), g.get_cell(2, 2))
-#         self.assertEqual(PO.effort(), 1+math.sqrt(2)+1)
-#         self.assertEquals(PO.path, [(0, 0), (1, 0), (2, 1), (2, 2)])
 
     def testNoPathFound(self):
          g = Grid(3, 3)

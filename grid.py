@@ -40,7 +40,21 @@ class Grid(Graph):
                     self.add_edge(center_vert, tmp_vert, Edge(cost=cost))
 
     def add_cell(self, x, y):
-        pass
+        offs = [(-1, -1, math.sqrt(2)), (0, -1, 1), (+1, -1, math.sqrt(2)),
+                (0, -1, 1), (0, +1, 1),
+                (+1, -1, math.sqrt(2)), (+1, 0, 1), (+1, +1, math.sqrt(2))]
+
+        vert = self.add_vertex(Vertex(Grid.CellCoordLabel(x, y)))
+        for (off_x, off_y, cost) in offs:
+            (cx, cy) = (x+off_x, y+off_y)
+            if cx < 0 or cy < 0:
+                continue
+            if cx == x or cy == y:
+                continue
+            tmp_vert = self.vertex(Grid.CellCoordLabel(cx, cy))
+            self.add_edge(vert, tmp_vert, Edge(cost=cost))
+
+
 
     def del_cell(self, x, y=None):
         if y == None:

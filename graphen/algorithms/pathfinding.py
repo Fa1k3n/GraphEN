@@ -1,5 +1,6 @@
 import Queue
 import time
+from .. import graphen
 
 class AlgObj(object):
 
@@ -85,7 +86,7 @@ class Djikstra(AlgObj):
 
     def effort(self, node=None):
         if node == None:
-            node = self._graph.get_cell(self.path[-1])
+            node = self.path[-1]
         return self.g_score[node]
 
 # AStar is a Djikstra with a distance function

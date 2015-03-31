@@ -56,6 +56,7 @@ class Graph(object):
                 self._vertices[vert] = []
             else:
                 raise GraphError("Trying to add already existing vertex: " + str(vert))
+            new_vert = vert
 
         return new_vert
 

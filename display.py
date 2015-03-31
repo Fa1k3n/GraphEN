@@ -124,6 +124,9 @@ class GridController(object):
         try:
             c = self.grid.vertex(cell_lbl)
         except:
+            print "here", cell_lbl
+            self.grid.add_cell(cell[0], cell[1])
+            self.view.draw()
             return
         else:
             if self.map_edit:
@@ -132,8 +135,6 @@ class GridController(object):
                 new_pos = []
                 for po in self.view.path_objs:
                     p = self.create_path_obj()
-                    #start = self.grid.get_cell(self.grid.cell_coord(po.path[0]))
-                    #end = self.grid.get_cell(self.grid.cell_coord(po.path[-1]))
                     (start, end) = (po.path[0], po.path[-1])
                     p.shortest_path(start, end)
                     new_pos.append(p)
