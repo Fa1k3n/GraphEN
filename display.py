@@ -28,6 +28,7 @@ class Path(object):
         print ("Time", self.po.time)
 
     def create(self, view):
+        print "Create PATH", self, [view.grid.cell_coord(seg) for seg in self.po.path]
         coords = [(x*view.cw + view.cw/2, y*view.ch+view.ch/2) for x,y in [view.grid.cell_coord(seg) for seg in self.po.path]]
         coords = list(sum(coords, ()))
         idx = view.create_line(*coords, width=3, smooth=True)
@@ -59,9 +60,13 @@ class GridCanvas(Canvas, object):
     def add(self, object):
         idx = object.create(self)
         self.objects[object] = idx
+        print "Created:", object
 
     def remove(self, object):
+        print "Remove", object
         self.delete(self.objects[object])
+        self.objects.pop(object)
+
 
     def process_click(self, x, y):
         colors = {"black" : "white", "white" : "black"}
@@ -74,8 +79,7 @@ class GridController(object):
         self.grid = grid
         self.view = view
         self.objects = {}
-        self.waypoints = {}
-        self.last_added_wp = None
+        self.waypoints = {"last_added_wp": None}
         self.paths = {}
         self.view.bind("<Button-1>", self.mouse_click)
         self.view.root.bind("<a>", self.toggle_algo)
@@ -84,7 +88,6 @@ class GridController(object):
         self.algos = {"Djikstra":"A*", "A*":"Djikstra"}
         self.map_edit = False
         self.set_win_title()
-        self.selected_cells = []
 
 
     def set_win_title(self):
@@ -118,8 +121,8 @@ class GridController(object):
             return AStar(self.grid, self.grid.dist)
 
     def update_paths(self):
-        for wp in self.paths:
-            p = self.paths[wp]
+        for wp, p in self.paths.items():
+            print wp, p
             self.view.remove(p)
             p.po = self.create_path_obj()
             p.po.shortest_path(p.start_vertex, p.end_vertex)
@@ -137,20 +140,20 @@ class GridController(object):
                 self.view.process_click(event.x, event.y)
                 self.grid.add_cell(cell[0], cell[1])
                 self.update_paths()
-            return
+                return
         else:
             if self.map_edit:
                 self.view.process_click(event.x, event.y)
                 self.grid.del_cell(cell)
                 self.update_paths()
-
                 return
 
         (wp_added, wp) = self.toggle_waypoint(cell)
         if wp_added:
             try:
-                self.waypoints[self.last_added_wp]["next"] = wp
-                self.waypoints[wp]["prev"] = self.last_added_wp
+                last_added = self.waypoints["last_added_wp"]
+                self.waypoints[last_added]["next"] = wp
+                self.waypoints[wp]["prev"] = last_added
             except KeyError as e:
                 pass
             else:
@@ -162,13 +165,16 @@ class GridController(object):
                     self.waypoints[wp]["paths"].append(p)
                 if p not in self.waypoints[prev_wp]["paths"]:
                     self.waypoints[prev_wp]["paths"].append(p)
-            self.last_added_wp = wp
+            self.waypoints["last_added_wp"] = wp
         else:
             prev_wp = self.waypoints[wp]["prev"]
             next_wp = self.waypoints[wp]["next"]
             for path in self.waypoints[wp]["paths"]:
                 self.view.remove(path)
+            #print "Remove from paths", wp, self.paths
+            #self.paths.pop(wp)
             self.waypoints.pop(wp)
+            self.view.remove(wp)
             try:
                 self.waypoints[prev_wp]["next"] = next_wp
             except:
@@ -176,12 +182,13 @@ class GridController(object):
             try:
                 self.waypoints[next_wp]["prev"] = prev_wp
             except:
-                self.last_added_wp = prev_wp
+                self.waypoints["last_added_wp"] = prev_wp
                 return
             p = Path(d, prev_wp, next_wp)
             self.add_path_to_wp(p, prev_wp)
             self.add_path_to_wp(p, next_wp)
             self.view.add(p)
+            self.paths[wp] = p
 
     def add_path_to_wp(self, path, waypoint):
         if path not in self.waypoints[waypoint]["paths"]:
