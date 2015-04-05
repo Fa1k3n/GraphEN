@@ -6,35 +6,189 @@ import warnings
 from graphen.algorithms.pathfinding import Djikstra as Djikstra
 from graphen.algorithms.pathfinding import AStar as AStar
 
-class Waypoint(object):
-    def __init__(self, cell):
+class GridComp(object):
+    active_comp = None
+
+    @staticmethod
+    def next_active_comp():
+        for ac in GridComp.active_comp:
+            yield ac
+
+    active_color = "green"
+    active_fill = "green"
+    inactive_fill = "black"
+
+    def __init__(self):
+        self.idx = None
+        self.activate_on_creation = True
+
+    def create(self, view, grid):
+        self.grid = grid
+        self.idx = self.create_component(view)
+        if self.activate_on_creation:
+            self.activate()
+        self.view.tag_raise("waypoint")  # Make sure that waypoint are always at the top
+        return self.idx
+
+    def activate(self):
+        if GridComp.active_comp is not None:
+            GridComp.active_comp.inactivate()
+        self.activate_component(self.idx)
+        GridComp.active_comp = self
+
+    def inactivate(self):
+        self.inactivate_component(self.idx)
+        GridComp.active_comp = None
+
+    def delete(self):
+        self.inactivate()
+        self.delete_component()
+
+    def move(self, view, cell):
+        (x, y) = self.view.cell_to_screen(cell)
+        (sx, sy) = self.view.cell_to_screen(self.cell)
+        view.move(self.idx, x-sx, y-sy)
         self.cell = cell
+
+class Waypoint(GridComp):
+    def __init__(self, cell):
+        super(Waypoint, self).__init__()
+        self.cell = cell
+        self.view = None
         self.next_wp = None
         self.prev_wp = None
+        self.outgoing_paths = []
+        self.ingoing_paths = []
 
-    def create(self, view):
+    def create_component(self, view):
         (x, y) = view.cell_to_screen(self.cell)
-        idx = view.create_rectangle(x-view.cw/2+2, y-view.ch/2+2, x+view.cw/2-2, y+view.ch/2-2, fill="red", activeoutline="yellow")
-        return idx
+        self.view = view
+        try:
+            GridComp.active_comp.next_wp = self
+            self.prev_wp = GridComp.active_comp
+        except AttributeError:
+            pass
+        return view.create_rectangle(x-view.cw/2+2, y-view.ch/2+2, x+view.cw/2-2, y+view.ch/2-2, tag="waypoint", fill="red", width=0, activewidth=3, activeoutline="blue")
 
-class Path(object):
-    def __init__(self, PO, start, end):
-        self.start_wp = start
-        self.end_wp = end
-        self.start_vertex = PO._graph.get_cell(start.cell)
-        self.end_vertex = PO._graph.get_cell(end.cell)
-        self.po = PO
-        self.po.shortest_path(self.start_vertex, self.end_vertex)
-        print ("Time", self.po.time)
+    def activate_component(self, idx):
+        self.view.itemconfig(idx, outline=GridComp.active_fill, width=2)
 
-    def create(self, view):
-        print "Create PATH", self, [view.grid.cell_coord(seg) for seg in self.po.path]
-        coords = [(x*view.cw + view.cw/2, y*view.ch+view.ch/2) for x,y in [view.grid.cell_coord(seg) for seg in self.po.path]]
+    def inactivate_component(self, idx):
+        self.view.itemconfig(idx, outline=GridComp.inactive_fill, width=0)
+
+    def remove_paths(self, *path_list):
+        for p in path_list:
+            iter_paths = list(p)
+            for op in iter_paths:
+               try:
+                   op.delete()
+               except Exception as e:
+                    print e
+
+    def delete_component(self):
+        (prev_wp, next_wp) = (self.prev_wp, self.next_wp)
+        if prev_wp is not None:
+            prev_wp.next_wp = next_wp
+        if next_wp is not None:
+            next_wp.prev_wp = prev_wp
+        if self.outgoing_paths and self.ingoing_paths:
+            p = Path(self.ingoing_paths[0].start_wp, self.outgoing_paths[0].end_wp)
+            self.view.add(p)
+        self.remove_paths(self.outgoing_paths, self.ingoing_paths)
+        self.view.remove(self)
+
+    def remove_path(self, wp):
+        try:
+            self.outgoing_paths.pop(self.outgoing_paths.index(wp))
+        except Exception as e:
+            print e
+        try:
+            a = self.ingoing_paths.pop(self.ingoing_paths.index(wp))
+        except Exception as e:
+            print e
+
+    def find_path(self, wp):
+        for po in self.outgoing_paths:
+            if po.end_wp == wp:
+                return po
+
+        for po in self.ingoing_paths:
+            if po.start_wp == wp:
+                return po
+        return None
+
+    def move(self, view, cell):
+        super(Waypoint, self).move(self.view, cell)
+        # Update paths connected to this WP
+        iter_outgoing = list(self.outgoing_paths)
+        for op in iter_outgoing:
+            p = Path(self, op.end_wp)
+            op.delete()
+            self.view.add(p)
+
+        iter_ingoing = list(self.ingoing_paths)
+        for op in iter_ingoing:
+            p = Path(op.start_wp, self)
+            op.delete()
+            self.view.add(p)
+        # Make sure that WP is still active
+        self.activate()
+
+class Path(GridComp):
+    def __init__(self, start_wp, end_wp):
+        super(Path, self).__init__()
+        self.start_wp = start_wp
+        self.end_wp = end_wp
+        start_wp.outgoing_paths.append(self)
+        end_wp.ingoing_paths.append(self)
+        self.view = None
+        self.activate_on_creation = False
+
+    def create_component(self, view):
+        self.view = view
+        (x, y) = view.cell_to_screen(self.start_wp.cell)
+        astar = AStar(self.grid, self.grid.dist)
+        astar.shortest_path(self.grid.get_cell(self.start_wp.cell), self.grid.get_cell(self.end_wp.cell))
+        coords = [(x*self.view.cw + self.view.cw/2, y*self.view.ch+self.view.ch/2) for x,y in [self.view.grid.cell_coord(seg) for seg in astar.path]]
         coords = list(sum(coords, ()))
-        idx = view.create_line(*coords, width=3, smooth=True)
+        idx = view.create_line(*coords, width=2, smooth=True, activefill="blue", tag="path")
         return idx
+
+    def activate_component(self, idx):
+        self.view.itemconfig(idx, fill=GridComp.active_fill, width=3)
+
+    def inactivate_component(self, idx):
+        self.view.itemconfig(idx, fill=GridComp.inactive_fill, width=2)
+
+    def delete_component(self):
+        self.start_wp.remove_path(self)
+        self.end_wp.remove_path(self)
+        self.view.remove(self)
+
+class Cell(GridComp):
+    def __init__(self, cell):
+        super(Cell, self).__init__()
+        self.cell = cell
+        self.view = None
+
+    def create_component(self, view):
+        self.view = view
+        (x, y) = self.cell
+        idx = view.create_rectangle(x * view.cw, y * view.ch, (x + 1) * view.cw, (y + 1) * view.ch,
+                                    fill="white", activewidth=3, activeoutline="blue", tag="Cell")
+        return idx
+
+    def activate_component(self, idx):
+        self.view.itemconfig(idx, outline=GridComp.active_fill, width=3)
+
+    def inactivate_component(self, idx):
+        self.view.itemconfig(idx, outline=GridComp.inactive_fill, width=1)
+
+    def delete_component(self):
+        self.view.remove(self)
 
 class GridCanvas(Canvas, object):
+
     def __init__(self, root, grid, width=200, height=200):
         Canvas.__init__(self, root, width=width, height=height, background="black")
         self.root = root
@@ -44,75 +198,78 @@ class GridCanvas(Canvas, object):
         self._edit_mode = False
         self.rect_ids = [[None]*self.hori_cells]*self.vert_cells
         self.objects = {}
+        self._active_object = None
+
         for i in range(self.vert_cells):
             for j in range(self.hori_cells):
-                idx = self.create_rectangle(i * self.cw, j * self.ch, (i + 1) * self.cw, (j + 1) * self.ch,
-                                            fill = "white", activewidth=3, activeoutline="blue")
-                self.rect_ids[i][j]= idx
+                c = Cell((j, i))
+                self.add(c)
                 try:
                     c = g.get_cell(i, j)
                 except GraphError:
-                    self.itemconfig(idx, fill="black")
+                    self.remove(c)
 
     def cell_to_screen(self, cell):
         return (cell[0]*self.cw+self.cw/2, cell[1]*self.ch+self.ch/2)
 
-    def add(self, object):
-        idx = object.create(self)
-        self.objects[object] = idx
-        print "Created:", object
+    def screen_to_cell(self, x, y):
+        cell_x = int(x / self.cw)
+        cell_y = int(y / self.ch)
+        return (cell_x, cell_y)
+
+    def add(self, obj):
+        try:
+            (x, y) = self.cell_to_screen(obj.cell)
+        except AttributeError:
+            (x, y) = (obj, None)
+        idx = obj.create(self, self.grid)
+        self.objects[obj] = idx
+        self.tag_raise("waypoint")  # Make sure waypoints are on top
 
     def remove(self, object):
-        print "Remove", object
         self.delete(self.objects[object])
         self.objects.pop(object)
 
+    def get_obj(self):
+        try:
+            idx = self.find_withtag(CURRENT)[0]
+        except IndexError:
+            # Object does not exist
+            return None
+        else:
+            for obj in self.objects:
+                if self.objects[obj] == idx:
+                    return obj
+        return None
 
-    def process_click(self, x, y):
-        colors = {"black" : "white", "white" : "black"}
-        idx = self.find_closest(x, y)
-        fill = self.itemcget(idx, "fill")
-        self.itemconfig(idx, fill=colors[fill])
+    def iterate_objs(self):
+        for obj in self.objects:
+            yield obj
 
 class GridController(object):
     def __init__(self, grid, view):
         self.grid = grid
         self.view = view
-        self.objects = {}
-        self.waypoints = {"last_added_wp": None}
-        self.paths = {}
+        self.key_down = None
         self.view.bind("<Button-1>", self.mouse_click)
+        self.view.bind("<B1-Motion>", self.mouse_motion)
         self.view.root.bind("<a>", self.toggle_algo)
-        self.view.root.bind("<e>", self.toggle_map_edit)
+        self.view.root.bind("<BackSpace>", self.delete_comp)
+        self.view.root.bind("<Any-KeyPress>", lambda event: setattr(self, "key_down", event.char))
+        self.view.root.bind("<Any-KeyRelease>", lambda event: setattr(self, "key_up", event.char))
         self.algo = "Djikstra"
         self.algos = {"Djikstra":"A*", "A*":"Djikstra"}
-        self.map_edit = False
         self.set_win_title()
 
-
     def set_win_title(self):
-        self.view.root.wm_title("Algorithm [" + self.algo + "] Map edit [" + str(self.map_edit) + "]")
+        self.view.root.wm_title("Algorithm [" + self.algo + "]")
 
     def toggle_algo(self, event):
         self.algo = self.algos[self.algo]
         self.set_win_title()
 
-    def toggle_map_edit(self, event):
-        self.map_edit = not self.map_edit
-        self.view.edit_mode = self.map_edit
-        self.set_win_title()
-
-    def toggle_waypoint(self, cell):
-        try:
-            self.view.remove(self.objects[cell])
-            wp = self.objects.pop(cell)
-        except KeyError:
-            wp = Waypoint(cell)
-            self.objects[cell] = wp
-            self.view.add(wp)
-            self.waypoints[wp] = {"prev":None, "next":None, "paths":[]}
-            return (True, wp)
-        return (False, wp)
+    def delete_comp(self, event):
+        GridComp.active_comp.delete()
 
     def create_path_obj(self):
         if self.algo == "Djikstra":
@@ -120,84 +277,35 @@ class GridController(object):
         else:
             return AStar(self.grid, self.grid.dist)
 
-    def update_paths(self):
-        for wp, p in self.paths.items():
-            print wp, p
-            self.view.remove(p)
-            p.po = self.create_path_obj()
-            p.po.shortest_path(p.start_vertex, p.end_vertex)
-            self.view.add(p)
+    def mouse_motion(self, event):
+        new_cell = self.view.screen_to_cell(event.x, event.y)
+        if GridComp.active_comp.cell is not new_cell:
+            GridComp.active_comp.move(self.view, new_cell)
 
     def mouse_click(self, event):
-        cell = (rect_x, rect_y) = self.coord_to_cell(event.x, event.y)
-        d = self.create_path_obj()
-        cell_lbl = Grid.CellCoordLabel(cell[0], cell[1])
-        # See if cell is existing
+        cell = (rect_x, rect_y) = self.view.screen_to_cell(event.x, event.y)
+        last_obj = GridComp.active_comp
+        new_obj = self.view.get_obj()
         try:
-            c = self.grid.vertex(cell_lbl)
-        except:
-            if self.map_edit:
-                self.view.process_click(event.x, event.y)
-                self.grid.add_cell(cell[0], cell[1])
-                self.update_paths()
-                return
-        else:
-            if self.map_edit:
-                self.view.process_click(event.x, event.y)
-                self.grid.del_cell(cell)
-                self.update_paths()
-                return
+            # Lets activate the new object if possible
+            new_obj.activate()
+        except AttributeError:
+            # If here user has clicked an empty cell, lets create that
+            c = Cell(cell)
+            self.view.add(c)
 
-        (wp_added, wp) = self.toggle_waypoint(cell)
-        if wp_added:
-            try:
-                last_added = self.waypoints["last_added_wp"]
-                self.waypoints[last_added]["next"] = wp
-                self.waypoints[wp]["prev"] = last_added
-            except KeyError as e:
-                pass
-            else:
-                prev_wp = self.waypoints[wp]["prev"]
-                p = Path(d, prev_wp, wp)
+        if isinstance(last_obj, Waypoint) and isinstance(new_obj, Waypoint) and last_obj is not new_obj:
+            # User has selected two different waypoints, lets create a path between them
+            # unless there already is a path between them
+            if not last_obj.find_path(new_obj):
+                p = Path(last_obj, new_obj)
                 self.view.add(p)
-                self.paths[wp] = p
-                if p not in self.waypoints[wp]["paths"]:
-                    self.waypoints[wp]["paths"].append(p)
-                if p not in self.waypoints[prev_wp]["paths"]:
-                    self.waypoints[prev_wp]["paths"].append(p)
-            self.waypoints["last_added_wp"] = wp
-        else:
-            prev_wp = self.waypoints[wp]["prev"]
-            next_wp = self.waypoints[wp]["next"]
-            for path in self.waypoints[wp]["paths"]:
-                self.view.remove(path)
-            #print "Remove from paths", wp, self.paths
-            #self.paths.pop(wp)
-            self.waypoints.pop(wp)
-            self.view.remove(wp)
-            try:
-                self.waypoints[prev_wp]["next"] = next_wp
-            except:
-                return
-            try:
-                self.waypoints[next_wp]["prev"] = prev_wp
-            except:
-                self.waypoints["last_added_wp"] = prev_wp
-                return
-            p = Path(d, prev_wp, next_wp)
-            self.add_path_to_wp(p, prev_wp)
-            self.add_path_to_wp(p, next_wp)
-            self.view.add(p)
-            self.paths[wp] = p
-
-    def add_path_to_wp(self, path, waypoint):
-        if path not in self.waypoints[waypoint]["paths"]:
-            self.waypoints[waypoint]["paths"].append(path)
-
-    def coord_to_cell(self, x, y):
-        cell_x = int(x / self.view.cw)
-        cell_y = int(y / self.view.ch)
-        return (cell_x, cell_y)
+        elif isinstance(new_obj, Cell) and self.key_down == "w":
+            wp = Waypoint(cell)
+            self.view.add(wp)
+            if isinstance(last_obj, Waypoint):
+                p = Path(last_obj, wp)
+                self.view.add(p)
 
 if __name__ == '__main__':
 
