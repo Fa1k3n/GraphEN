@@ -104,13 +104,11 @@ class Waypoint(GridComp):
     def remove_path(self, wp):
         try:
             self.outgoing_paths.pop(self.outgoing_paths.index(wp))
-            print "Removed from outgoing"
         except ValueError:
             pass
 
         try:
             self.ingoing_paths.pop(self.ingoing_paths.index(wp))
-            print "Removed from ingoing"
         except ValueError:
             pass
 
@@ -238,7 +236,9 @@ class GridCanvas(Canvas, object):
 
     def recalculate_paths(self):
         for obj in filter(lambda x: isinstance(x, Path), self.objects):
-            self.remove(obj)
+            obj.delete()
+
+            ## FIX THIS!!! createion of object should add it to the view
             p = Path(obj.start_wp, obj.end_wp)
             self.add(p)
 
@@ -351,10 +351,7 @@ class GridController(object):
             self.view.add(c)
             self.grid.add_cell(cell[0], cell[1])
             self.view.recalculate_paths()
-        if len(GridComp.active_comp) > 0:
-            last_obj = GridComp.active_comp[0]
-        else:
-            last_obj = None
+        last_obj = GridComp.next_active_comp()
         if self.key_down == "w":
             new_obj = self.check_and_create_wp(cell)
         else:
