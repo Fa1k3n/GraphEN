@@ -334,6 +334,9 @@ class GridController(object):
     def mouse_click(self, event):
         cell = (rect_x, rect_y) = self.view.screen_to_cell(event.x, event.y)
         last_obj = GridComp.active_comp[0]
+        print "AC:", GridComp.active_comp
+        if self.key_down == "w":
+            self.check_and_create_wp(cell)
         new_obj = self.view.get_current_obj()
         try:
             # Lets activate the new object if possible
@@ -349,14 +352,8 @@ class GridController(object):
             if not last_obj.find_path(new_obj):
                 p = Path(last_obj, new_obj)
                 self.view.add(p)
-        elif self.key_down == "w":
-            self.check_and_create_wp(cell)
-        #elif isinstance(new_obj, Cell) and self.key_down == "w":
-        #    wp = Waypoint(cell)
-       #     self.view.add(wp)
-       #     if isinstance(last_obj, Waypoint):
-       #         p = Path(last_obj, wp)
-       #         self.view.add(p)
+        #elif self.key_down == "w":
+        #    self.check_and_create_wp(cell)
         else:
             # Possible drag select action, lets set last known pos
             self.last_mouse = (event.x, event.y)
