@@ -66,6 +66,16 @@ class Grid(Graph):
             (x, y) = x
         return self.vertex(Grid.CellCoordLabel(x, y))
 
+    def has_cell(self, x, y=None):
+        if y == None:
+            (x, y) = x
+        try:
+            self.get_cell(x, y)
+        except GraphError:
+            return False
+        else:
+            return True
+
     def cell_coord(self, cell):
         coord = cell.label.split(",")
         return (int(coord[0]), int(coord[1]))

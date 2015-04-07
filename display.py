@@ -127,15 +127,17 @@ class Waypoint(GridComp):
         # Update paths connected to this WP
         iter_outgoing = list(self.outgoing_paths)
         for op in iter_outgoing:
-            p = Path(self, op.end_wp)
             op.delete()
-            self.view.add(p)
+            if op.end_wp.cell is not cell:
+                p = Path(self, op.end_wp)
+                self.view.add(p)
 
         iter_ingoing = list(self.ingoing_paths)
         for op in iter_ingoing:
-            p = Path(op.start_wp, self)
             op.delete()
-            self.view.add(p)
+            if op.start_wp.cell is not cell:
+                p = Path(op.start_wp, self)
+                self.view.add(p)
         # Make sure that WP is still active
         self.activate()
 
@@ -156,6 +158,8 @@ class Path(GridComp):
         astar.shortest_path(self.grid.get_cell(self.start_wp.cell), self.grid.get_cell(self.end_wp.cell))
         coords = [(x*self.view.cw + self.view.cw/2, y*self.view.ch+self.view.ch/2) for x,y in [self.view.grid.cell_coord(seg) for seg in astar.path]]
         coords = list(sum(coords, ()))
+        if len(coords) == 2:  # This is for when the start and end cells are the same
+            [coords.append(c) for c in list(coords)]
         return view.create_line(*coords, width=2, smooth=True, activefill="blue", tag="path")
 
     def activate_component(self, idx):
@@ -219,10 +223,6 @@ class GridCanvas(Canvas, object):
         return (cell_x, cell_y)
 
     def add(self, obj):
-        try:
-            (x, y) = self.cell_to_screen(obj.cell)
-        except AttributeError:
-            (x, y) = (obj, None)
         idx = obj.create(self, self.grid)
         self.objects[obj] = idx
         self.tag_raise("waypoint")  # Make sure waypoints are on top
@@ -230,6 +230,13 @@ class GridCanvas(Canvas, object):
     def remove(self, object):
         self.delete(self.objects[object])
         self.objects.pop(object)
+        if isinstance(object, Cell):
+            # World has changed, recalculate all paths
+            for obj in filter(lambda x: isinstance(x, Path), self.objects):
+                self.delete(self.objects[obj])
+                self.objects.pop(obj)
+                p = Path(obj.start_wp, obj.end_wp)
+                self.add(p)
 
     def get_current_obj(self):
         try:
@@ -266,14 +273,14 @@ class GridController(object):
         self.view = view
         self.key_down = None
         self.last_mouse = (None, None)
-        self.view.bind("<Button-1>", self.mouse_click)
+        self.view.bind("<Button-1>", self.mouse_leftclick)
+        self.view.bind("<Button-3>", self.mouse_rightclick)
         self.view.bind("<ButtonRelease-1>", lambda event: setattr(self, "last_mouse", (None, None)))
         self.view.bind("<B1-Motion>", self.mouse_motion)
-        self.view.bind("<Double-Button-1>", self.mouse_doubleclick)
         self.view.root.bind("<a>", self.toggle_algo)
         self.view.root.bind("<BackSpace>", self.delete_comp)
         self.view.root.bind("<Any-KeyPress>", lambda event: setattr(self, "key_down", event.char))
-        self.view.root.bind("<Any-KeyRelease>", lambda event: setattr(self, "key_up", event.char))
+        self.view.root.bind("<Any-KeyRelease>", lambda event: setattr(self, "key_down", None))
         self.algo = "Djikstra"
         self.algos = {"Djikstra":"A*", "A*":"Djikstra"}
         self.set_win_title()
@@ -288,8 +295,8 @@ class GridController(object):
     def delete_comp(self, event):
         to_be_deleted = list(GridComp.active_comp)
         for ac in to_be_deleted:
-            if ac is not None:
-                ac.delete()
+            self.grid.del_cell(ac.cell)
+            ac.delete()
 
     def create_path_obj(self):
         if self.algo == "Djikstra":
@@ -311,40 +318,32 @@ class GridController(object):
 
     def mouse_motion(self, event):
         new_cell = self.view.screen_to_cell(event.x, event.y)
-        for ac in GridComp.next_active_comp():
-            if isinstance(ac, Waypoint):
+        if self.grid.has_cell(new_cell):
+            for ac in filter(lambda x: isinstance(x, Waypoint), list(GridComp.next_active_comp())):
                 if ac.cell is not new_cell:
                     ac.move(self.view, new_cell)
 
-       #try:
-       #    enclosed_objects = self.view.find_enclosed_objs(event.x, event.y, self.last_mouse[0], self.last_mouse[1])
-       #    for eo in GridComp.active_comp:
-       #        if eo is not None:
-       #            eo.inactivate()
-       #    GridComp.active_comp = []
-       #    for eo in enclosed_objects:
-       #        eo.activate(clear=False)
-       #except TclError as e:
-       #    print e
-
-    def mouse_doubleclick(self, event):
+    def mouse_rightclick(self, event):
         cell = (rect_x, rect_y) = self.view.screen_to_cell(event.x, event.y)
-        self.check_and_create_wp(cell)
-
-    def mouse_click(self, event):
-        cell = (rect_x, rect_y) = self.view.screen_to_cell(event.x, event.y)
-        last_obj = GridComp.active_comp[0]
-        print "AC:", GridComp.active_comp
-        if self.key_down == "w":
+        if self.grid.has_cell(cell):
             self.check_and_create_wp(cell)
-        new_obj = self.view.get_current_obj()
-        try:
-            # Lets activate the new object if possible
-            new_obj.activate()
-        except AttributeError:
-            # If here user has clicked an empty cell, lets create that
+
+    def mouse_leftclick(self, event):
+        cell = (rect_x, rect_y) = self.view.screen_to_cell(event.x, event.y)
+        if not self.grid.has_cell(cell):
             c = Cell(cell)
             self.view.add(c)
+            self.grid.add_cell(*cell)
+        last_obj = GridComp.active_comp[0]
+        if self.key_down == "w":
+            new_obj = self.check_and_create_wp(cell)
+        else:
+            new_obj = self.view.get_current_obj()
+        # Lets activate the new object if possible
+        try:
+            new_obj.activate()
+        except AttributeError:
+            pass
 
         if isinstance(last_obj, Waypoint) and isinstance(new_obj, Waypoint) and last_obj is not new_obj:
             # User has selected two different waypoints, lets create a path between them
@@ -352,8 +351,6 @@ class GridController(object):
             if not last_obj.find_path(new_obj):
                 p = Path(last_obj, new_obj)
                 self.view.add(p)
-        #elif self.key_down == "w":
-        #    self.check_and_create_wp(cell)
         else:
             # Possible drag select action, lets set last known pos
             self.last_mouse = (event.x, event.y)
