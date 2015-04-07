@@ -16,7 +16,7 @@ class GridComp(object):
 
     @staticmethod
     def reset_active_comp():
-        GridComp.active_comp = [None]
+        GridComp.active_comp = []
 
     active_color = "green"
     active_fill = "green"
@@ -104,11 +104,13 @@ class Waypoint(GridComp):
     def remove_path(self, wp):
         try:
             self.outgoing_paths.pop(self.outgoing_paths.index(wp))
+            print "Removed from outgoing"
         except ValueError:
             pass
 
         try:
-            a = self.ingoing_paths.pop(self.ingoing_paths.index(wp))
+            self.ingoing_paths.pop(self.ingoing_paths.index(wp))
+            print "Removed from ingoing"
         except ValueError:
             pass
 
@@ -232,11 +234,13 @@ class GridCanvas(Canvas, object):
         self.objects.pop(object)
         if isinstance(object, Cell):
             # World has changed, recalculate all paths
-            for obj in filter(lambda x: isinstance(x, Path), self.objects):
-                self.delete(self.objects[obj])
-                self.objects.pop(obj)
-                p = Path(obj.start_wp, obj.end_wp)
-                self.add(p)
+            self.recalculate_paths()
+
+    def recalculate_paths(self):
+        for obj in filter(lambda x: isinstance(x, Path), self.objects):
+            self.remove(obj)
+            p = Path(obj.start_wp, obj.end_wp)
+            self.add(p)
 
     def get_current_obj(self):
         try:
@@ -295,8 +299,10 @@ class GridController(object):
     def delete_comp(self, event):
         to_be_deleted = list(GridComp.active_comp)
         for ac in to_be_deleted:
-            self.grid.del_cell(ac.cell)
+            if isinstance(ac, Cell):
+                self.grid.del_cell(ac.cell)
             ac.delete()
+        GridComp.active_comp = []
 
     def create_path_obj(self):
         if self.algo == "Djikstra":
@@ -305,7 +311,11 @@ class GridController(object):
             return AStar(self.grid, self.grid.dist)
 
     def check_and_create_wp(self, cell):
-        last_obj = GridComp.active_comp[0]
+        if len(GridComp.active_comp) > 0:
+            last_obj = GridComp.active_comp[0]
+        else:
+            last_obj = None
+
         new_obj = self.view.get_current_obj()
         if isinstance(new_obj, Cell):
             wp = Waypoint(cell)
@@ -318,10 +328,16 @@ class GridController(object):
 
     def mouse_motion(self, event):
         new_cell = self.view.screen_to_cell(event.x, event.y)
-        if self.grid.has_cell(new_cell):
+        if self.grid.has_cell(new_cell) and len(GridComp.active_comp) and isinstance(GridComp.active_comp[0], Waypoint):
             for ac in filter(lambda x: isinstance(x, Waypoint), list(GridComp.next_active_comp())):
                 if ac.cell is not new_cell:
                     ac.move(self.view, new_cell)
+        elif self.grid.has_cell(new_cell):
+            for obj in filter(lambda x: isinstance(x, Cell), GridComp.active_comp):
+                obj.inactivate()
+            enclosed_obj = self.view.find_enclosed_objs(event.x, event.y, self.last_mouse[0], self.last_mouse[1])
+            for obj in filter(lambda x: isinstance(x, Cell), enclosed_obj):
+                obj.activate(False)
 
     def mouse_rightclick(self, event):
         cell = (rect_x, rect_y) = self.view.screen_to_cell(event.x, event.y)
@@ -333,8 +349,12 @@ class GridController(object):
         if not self.grid.has_cell(cell):
             c = Cell(cell)
             self.view.add(c)
-            self.grid.add_cell(*cell)
-        last_obj = GridComp.active_comp[0]
+            self.grid.add_cell(cell[0], cell[1])
+            self.view.recalculate_paths()
+        if len(GridComp.active_comp) > 0:
+            last_obj = GridComp.active_comp[0]
+        else:
+            last_obj = None
         if self.key_down == "w":
             new_obj = self.check_and_create_wp(cell)
         else:
