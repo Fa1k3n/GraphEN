@@ -238,7 +238,7 @@ class GridCanvas(Canvas, object):
         for obj in filter(lambda x: isinstance(x, Path), self.objects):
             obj.delete()
 
-            ## FIX THIS!!! createion of object should add it to the view
+            ## FIX THIS!!! creation of object should add it to the view
             p = Path(obj.start_wp, obj.end_wp)
             self.add(p)
 

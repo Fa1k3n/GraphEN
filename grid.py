@@ -41,8 +41,8 @@ class Grid(Graph):
 
     def add_cell(self, x, y):
         neigh_offs = [(-1, -1, math.sqrt(2)), (0, -1, 1), (+1, -1, math.sqrt(2)),
-                      (0, -1, 1), (0, +1, 1),
-                      (+1, -1, math.sqrt(2)), (+1, 0, 1), (+1, +1, math.sqrt(2))]
+                      (-1, 0, 1), (+1, 0, 1),
+                      (-1, +1, math.sqrt(2)), (0, +1, 1), (+1, +1, math.sqrt(2))]
         vert = self.add_vertex(Vertex(Grid.CellCoordLabel(x, y)))
         for (off_x, off_y, cost) in neigh_offs:
             (cx, cy) = (x+off_x, y+off_y)
