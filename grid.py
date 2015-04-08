@@ -1,6 +1,8 @@
 import math
 import time
 from Queue import PriorityQueue
+from graphen.algorithms.pathfinding import Djikstra as Djikstra
+from graphen.algorithms.pathfinding import AStar as AStar
 
 from graphen.graphen import *
 
@@ -14,6 +16,8 @@ class Grid(Graph):
         super(Grid, self).__init__()
 
         self._visited_set = []
+        self.algo = "Djikstra"
+        self.algos = {"Djikstra":"A*", "A*":"Djikstra"}
         self.size = (x, y)
         if x == None:
             x = 5
@@ -76,6 +80,12 @@ class Grid(Graph):
     def cell_coord(self, cell):
         coord = cell.label.split(",")
         return (int(coord[0]), int(coord[1]))
+
+    def create_path_obj(self):
+        if self.algo == "Djikstra":
+            return Djikstra(self)
+        else:
+            return AStar(self, self.dist)
 
     def dist(self, start, end):
         start_x, start_y = self.cell_coord(start)

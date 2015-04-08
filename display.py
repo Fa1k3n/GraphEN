@@ -3,8 +3,6 @@
 from Tkinter import *
 from grid import *
 import warnings
-from graphen.algorithms.pathfinding import Djikstra as Djikstra
-from graphen.algorithms.pathfinding import AStar as AStar
 
 class GridComp(object):
     active_comp = [None]
@@ -149,24 +147,37 @@ class Path(GridComp):
         start_wp.outgoing_paths.append(self)
         end_wp.ingoing_paths.append(self)
         self.view = None
+        self.po = None
         self.activate_on_creation = False
+        self.markers = []
 
     def create_component(self, view):
         self.view = view
         (x, y) = view.cell_to_screen(self.start_wp.cell)
-        astar = AStar(self.grid, self.grid.dist)
-        astar.shortest_path(self.grid.get_cell(self.start_wp.cell), self.grid.get_cell(self.end_wp.cell))
-        coords = [(x*self.view.cw + self.view.cw/2, y*self.view.ch+self.view.ch/2) for x,y in [self.view.grid.cell_coord(seg) for seg in astar.path]]
+        self.po = self.grid.create_path_obj()
+        #self.po = AStar(self.grid, self.grid.dist)
+        #self.po = Djikstra(self.grid)
+        self.po.shortest_path(self.grid.get_cell(self.start_wp.cell), self.grid.get_cell(self.end_wp.cell))
+        coords = [(x*self.view.cw + self.view.cw/2, y*self.view.ch+self.view.ch/2) for x,y in [self.view.grid.cell_coord(seg) for seg in self.po.path]]
         coords = list(sum(coords, ()))
         if len(coords) == 2:  # This is for when the start and end cells are the same
             [coords.append(c) for c in list(coords)]
         return view.create_line(*coords, width=2, smooth=True, activefill="blue", tag="path")
 
     def activate_component(self, idx):
+        for vert in self.po.closedset:
+            (x, y) = self.view.cell_to_screen(self.grid.cell_coord(vert))
+            self.markers.append(self.view.create_oval(x-2, y-2, x+2, y+2, fill="red"))
+        for (score, vert) in self.po.openset.queue:
+            (x, y) = self.view.cell_to_screen(self.grid.cell_coord(vert))
+            self.markers.append(self.view.create_oval(x-2, y-2, x+2, y+2, fill="green"))
         self.view.itemconfig(idx, fill=GridComp.active_fill, width=3)
+
 
     def inactivate_component(self, idx):
         self.view.itemconfig(idx, fill=GridComp.inactive_fill, width=2)
+        for marker in self.markers:
+            self.view.delete(marker)
 
     def delete_component(self):
         self.start_wp.remove_path(self)
@@ -285,15 +296,13 @@ class GridController(object):
         self.view.root.bind("<BackSpace>", self.delete_comp)
         self.view.root.bind("<Any-KeyPress>", lambda event: setattr(self, "key_down", event.char))
         self.view.root.bind("<Any-KeyRelease>", lambda event: setattr(self, "key_down", None))
-        self.algo = "Djikstra"
-        self.algos = {"Djikstra":"A*", "A*":"Djikstra"}
         self.set_win_title()
 
     def set_win_title(self):
-        self.view.root.wm_title("Algorithm [" + self.algo + "]")
+        self.view.root.wm_title("Algorithm [" + self.grid.algo + "]")
 
     def toggle_algo(self, event):
-        self.algo = self.algos[self.algo]
+        self.grid.algo = self.grid.algos[self.grid.algo]
         self.set_win_title()
 
     def delete_comp(self, event):
@@ -303,12 +312,6 @@ class GridController(object):
                 self.grid.del_cell(ac.cell)
             ac.delete()
         GridComp.active_comp = []
-
-    def create_path_obj(self):
-        if self.algo == "Djikstra":
-            return Djikstra(self.grid)
-        else:
-            return AStar(self.grid, self.grid.dist)
 
     def check_and_create_wp(self, cell):
         if len(GridComp.active_comp) > 0:
