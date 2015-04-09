@@ -38,6 +38,7 @@ class GridComp(object):
                 if ac is not None:
                     ac.inactivate()
             GridComp.active_comp = []
+        self.view.logger("[" + str(type(self).__name__) + "] " + str(self))
         self.activate_component(self.idx)
         GridComp.active_comp.append(self)
 
@@ -54,6 +55,9 @@ class GridComp(object):
         (sx, sy) = self.view.cell_to_screen(self.cell)
         view.move(self.idx, x-sx, y-sy)
         self.cell = cell
+
+    def __str__(self):
+        return ""
 
 class Waypoint(GridComp):
     def __init__(self, cell):
@@ -98,6 +102,22 @@ class Waypoint(GridComp):
             self.view.add(p)
         self.remove_paths(self.outgoing_paths, self.ingoing_paths)
         self.view.remove(self)
+
+    def __str__(self):
+        s = "{:10s}".format(str(self.cell))
+        s += "\n\t->"
+        if self.outgoing_paths:
+            for path in self.outgoing_paths:
+                s += "{:10s}".format(str(path.end_wp.cell))
+        else:
+            s += "{:10s}".format("None")
+        s += "\n\t<-"
+        if self.ingoing_paths:
+            for path in self.ingoing_paths:
+                s += "{:10s}".format(str(path.start_wp.cell))
+        else:
+            s += "{:10s}".format("None")
+        return s
 
     def remove_path(self, wp):
         try:
@@ -163,7 +183,6 @@ class Path(GridComp):
         return view.create_line(*coords, width=2, smooth=True, activefill="blue", tag="path")
 
     def activate_component(self, idx):
-        print "Time:", self.po.time, "s"
         for vert in self.po.closedset:
             (x, y) = self.view.cell_to_screen(self.grid.cell_coord(vert))
             self.markers.append(self.view.create_oval(x-2, y-2, x+2, y+2, fill="red"))
@@ -174,6 +193,7 @@ class Path(GridComp):
 
 
     def inactivate_component(self, idx):
+        self.view.logger("")
         self.view.itemconfig(idx, fill=GridComp.inactive_fill, width=2)
         for marker in self.markers:
             self.view.delete(marker)
@@ -182,6 +202,12 @@ class Path(GridComp):
         self.start_wp.remove_path(self)
         self.end_wp.remove_path(self)
         self.view.remove(self)
+
+    def __str__(self):
+        s = "No path selected"
+        if self.po is not None:
+            s = "Time: " + str(self.po.time) + " s"
+        return s
 
 class Cell(GridComp):
     def __init__(self, cell):
@@ -204,6 +230,9 @@ class Cell(GridComp):
     def delete_component(self):
         self.view.remove(self)
 
+    def __str__(self):
+        return str(self.cell)
+
 class GridCanvas(Canvas, object):
 
     def __init__(self, root, grid, width=200, height=200):
@@ -214,6 +243,7 @@ class GridCanvas(Canvas, object):
         (self.cw, self.ch) = (width*1.0/self.vert_cells, height*1.0/self.hori_cells)
         self.rect_ids = [[None]*self.hori_cells]*self.vert_cells
         self.objects = {}
+        self.logger = lambda x: x
 
         for i in range(self.vert_cells):
             for j in range(self.hori_cells):
@@ -295,26 +325,11 @@ class GridController(object):
         self.view.root.bind("<BackSpace>", self.delete_comp)
         self.view.root.bind("<Any-KeyPress>", lambda event: setattr(self, "key_down", event.char))
         self.view.root.bind("<Any-KeyRelease>", lambda event: setattr(self, "key_down", None))
-        self.set_win_title()
-        self._u_message = None
-        self.logger = self.set_win_title
-
-    @property
-    def u_message(self):
-        return self._u_message
-
-    @u_message.setter
-    def u_message(self, msg):
-        self._u_message = msg
-        self.logger(self, "Algorithm [" + self.grid.algo + "]")
-
-    def set_win_title(self, msg=None):
-        self.view.root.wm_title("Algorithm [" + self.grid.algo + "]")
-
+        self.logger = lambda s, x: x
 
     def toggle_algo(self, event):
         self.grid.algo = self.grid.algos[self.grid.algo]
-        self.set_win_title()
+        self.logger("Algorithm [" + self.grid.algo + "]")
 
     def delete_comp(self, event):
         to_be_deleted = list(GridComp.active_comp)
@@ -386,6 +401,12 @@ class GridController(object):
             # Possible drag select action, lets set last known pos
             self.last_mouse = (event.x, event.y)
 
+def view_msg_hndlr(msg):
+    view_message.set(msg)
+
+def ctrl_msg_hndlr(msg):
+    ctrl_message.set(msg)
+
 if __name__ == '__main__':
 
     (hori_cells, vert_cells) = (40, 40)
@@ -399,15 +420,22 @@ if __name__ == '__main__':
             g.del_vertex(Grid.CellCoordLabel(hori_cells/i - x - 1, vert_cells/i))
 
     root = Tk()
+    root.wm_title("Pathfinding experiments")
     w = GridCanvas(root, g, width=600, height=600)
     c = GridController(g, w)
-    c.logger = lambda self, msg: self.u_message.set(msg)
-    c.u_message = StringVar()
+    view_message = StringVar()
+    ctrl_message = StringVar()
+    c.logger = ctrl_msg_hndlr
+    c.toggle_algo(None)
+    w.logger = view_msg_hndlr
 
 
-    l = Label(root, textvariable=c.u_message, bd=3)
+    view_lbl = Label(root, textvariable=view_message, bd=3)
+    ctrl_lbl = Label(root, textvariable=ctrl_message, bd=3)
 
     w.pack()
-    l.pack()
+    ctrl_lbl.pack(side="left")
+    view_lbl.pack(side="left", after=ctrl_lbl, padx=30)
+
 
     mainloop()
