@@ -155,8 +155,6 @@ class Path(GridComp):
         self.view = view
         (x, y) = view.cell_to_screen(self.start_wp.cell)
         self.po = self.grid.create_path_obj()
-        #self.po = AStar(self.grid, self.grid.dist)
-        #self.po = Djikstra(self.grid)
         self.po.shortest_path(self.grid.get_cell(self.start_wp.cell), self.grid.get_cell(self.end_wp.cell))
         coords = [(x*self.view.cw + self.view.cw/2, y*self.view.ch+self.view.ch/2) for x,y in [self.view.grid.cell_coord(seg) for seg in self.po.path]]
         coords = list(sum(coords, ()))
@@ -165,6 +163,7 @@ class Path(GridComp):
         return view.create_line(*coords, width=2, smooth=True, activefill="blue", tag="path")
 
     def activate_component(self, idx):
+        print "Time:", self.po.time, "s"
         for vert in self.po.closedset:
             (x, y) = self.view.cell_to_screen(self.grid.cell_coord(vert))
             self.markers.append(self.view.create_oval(x-2, y-2, x+2, y+2, fill="red"))
@@ -297,9 +296,21 @@ class GridController(object):
         self.view.root.bind("<Any-KeyPress>", lambda event: setattr(self, "key_down", event.char))
         self.view.root.bind("<Any-KeyRelease>", lambda event: setattr(self, "key_down", None))
         self.set_win_title()
+        self._u_message = None
+        self.logger = self.set_win_title
 
-    def set_win_title(self):
+    @property
+    def u_message(self):
+        return self._u_message
+
+    @u_message.setter
+    def u_message(self, msg):
+        self._u_message = msg
+        self.logger(self, "Algorithm [" + self.grid.algo + "]")
+
+    def set_win_title(self, msg=None):
         self.view.root.wm_title("Algorithm [" + self.grid.algo + "]")
+
 
     def toggle_algo(self, event):
         self.grid.algo = self.grid.algos[self.grid.algo]
@@ -390,7 +401,13 @@ if __name__ == '__main__':
     root = Tk()
     w = GridCanvas(root, g, width=600, height=600)
     c = GridController(g, w)
+    c.logger = lambda self, msg: self.u_message.set(msg)
+    c.u_message = StringVar()
+
+
+    l = Label(root, textvariable=c.u_message, bd=3)
 
     w.pack()
+    l.pack()
 
     mainloop()
